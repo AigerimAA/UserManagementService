@@ -79,7 +79,7 @@ namespace UserManagement.Controllers
             {
                 if (user.Status == Models.Enums.UserStatus.Blocked)
                 {
-                    user.Status = Models.Enums.UserStatus.Active;
+                    user.Status = Models.Enums.UserStatus.Unverified;
                 }
             }
 

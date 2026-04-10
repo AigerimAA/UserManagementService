@@ -81,11 +81,23 @@ namespace UserManagement.Controllers
         [HttpGet]
         public async Task<IActionResult> ConfirmEmail(Guid token)
         {
+            if (token == Guid.Empty)
+            {
+                TempData["ErrorMessage"] = "Invalid confirmation token";
+                return RedirectToAction("Login");
+            }
+
             var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.EmailConfirmationToken == token);
 
             if (user == null)
             {
-                TempData["ErrorMessage"] = "Invalid confirmation token";
+                TempData["ErrorMessage"] = "Invalid or expired confirmation token";
+                return RedirectToAction("Login");
+            }
+
+            if (user.Status == UserStatus.Active)
+            {
+                TempData["InfoMessage"] = "Email already confirmed";
                 return RedirectToAction("Login");
             }
 
@@ -95,10 +107,6 @@ namespace UserManagement.Controllers
                 user.EmailConfirmationToken = null;
                 await _dbContext.SaveChangesAsync();
                 TempData["SuccessMessage"] = "Email confirmed successfully!";
-            }
-            else
-            {
-                TempData["InfoMessage"] = "Email already confirmed";
             }
 
             return RedirectToAction("Login");
