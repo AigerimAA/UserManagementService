@@ -1,0 +1,206 @@
+﻿@model UserManagement.Models.ViewModels.UserManagementViewModel
+
+@{
+    ViewData["Title"] = "User Management";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+}
+
+<div class="container-fluid mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h3 class="mb-0">User Management</h3>
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    @Model.SuccessMessage
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    @Model.ErrorMessage
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            <div class="toolbar mb-3 p-2 bg-light rounded">
+                <button type="button" id="blockBtn" class="btn btn-warning btn-sm" disabled>
+                    <i class="bi bi-ban"></i> Block
+                </button>
+                <button type="button" id="unblockBtn" class="btn btn-success btn-sm" disabled>
+                    <i class="bi bi-check-circle"></i> Unblock
+                </button>
+                <button type="button" id="deleteBtn" class="btn btn-danger btn-sm" disabled>
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+                <button type="button" id="deleteUnverifiedBtn" class="btn btn-secondary btn-sm">
+                    <i class="bi bi-person-x"></i> Delete Unverified
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px; text-align: center;">
+                                <input type="checkbox" id="selectAllCheckbox" />
+                            </th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Last Login Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Model.Users)
+                        {
+                            <tr>
+                                <td style="text-align: center;">
+                                    <input type="checkbox" class="userCheckbox" data-user-id="@user.Id" />
+                                </td>
+                                <td>@user.Name</td>
+                                <td>@user.Email</td>
+                                <td>
+                                    @{
+                                        var badgeClass = user.Status.ToString() switch
+                                        {
+                                            "Active" => "bg-success",
+                                            "Unverified" => "bg-warning",
+                                            "Blocked" => "bg-danger",
+                                            _ => "bg-secondary"
+                                        };
+                                    }
+                                    <span class="badge @badgeClass">@user.Status</span>
+                                </td>
+                                <td>@user.LastLoginTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function getSelectedUserIds() {
+            var selected = [];
+            $('.userCheckbox:checked').each(function() {
+                selected.push($(this).data('user-id'));
+            });
+            return selected;
+        }
+
+        function updateToolbarButtons() {
+            var selectedCount = $('.userCheckbox:checked').length;
+            $('#blockBtn').prop('disabled', selectedCount === 0);
+            $('#unblockBtn').prop('disabled', selectedCount === 0);
+            $('#deleteBtn').prop('disabled', selectedCount === 0);
+        }
+
+        function showMessage(message, isSuccess) {
+            var alertClass = isSuccess ? 'alert-success' : 'alert-danger';
+            var alertHtml = `
+                <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            $('.card-body').prepend(alertHtml);
+            setTimeout(function() {
+                $('.alert').fadeOut('slow', function() { $(this).remove(); });
+            }, 3000);
+        }
+
+        function sendAction(action, userIds, successMessage) {
+            $.ajax({
+                url: '/User/' + action,
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(userIds),
+                headers: {
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        showMessage(response.message, true);
+                        setTimeout(function() {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        showMessage(response.message, false);
+                    }
+                },
+                error: function() {
+                    showMessage('An error occurred', false);
+                }
+            });
+        }
+
+        $('#selectAllCheckbox').change(function() {
+            $('.userCheckbox').prop('checked', $(this).prop('checked'));
+            updateToolbarButtons();
+        });
+
+        $(document).on('change', '.userCheckbox', function() {
+            updateToolbarButtons();
+            var allChecked = $('.userCheckbox:checked').length === $('.userCheckbox').length;
+            $('#selectAllCheckbox').prop('checked', allChecked);
+        });
+
+        $('#blockBtn').click(function() {
+            var selectedIds = getSelectedUserIds();
+            if (selectedIds.length > 0) {
+                sendAction('Block', selectedIds, 'Users blocked successfully');
+            }
+        });
+
+        $('#unblockBtn').click(function() {
+            var selectedIds = getSelectedUserIds();
+            if (selectedIds.length > 0) {
+                sendAction('Unblock', selectedIds, 'Users unblocked successfully');
+            }
+        });
+
+        $('#deleteBtn').click(function() {
+            var selectedIds = getSelectedUserIds();
+            if (selectedIds.length > 0) {
+                if (confirm('Are you sure you want to delete selected users?')) {
+                    sendAction('Delete', selectedIds, 'Users deleted successfully');
+                }
+            }
+        });
+
+        $('#deleteUnverifiedBtn').click(function() {
+            if (confirm('Are you sure you want to delete ALL unverified users?')) {
+                $.ajax({
+                    url: '/User/DeleteUnverified',
+                    type: 'POST',
+                    headers: {
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            showMessage(response.message, true);
+                            setTimeout(function() {
+                                location.reload();
+                            }, 1500);
+                        } else {
+                            showMessage(response.message, false);
+                        }
+                    },
+                    error: function() {
+                        showMessage('An error occurred', false);
+                    }
+                });
+            }
+        });
+
+        updateToolbarButtons();
+    </script>
+}

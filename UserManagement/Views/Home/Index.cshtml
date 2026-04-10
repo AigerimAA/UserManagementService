@@ -1,0 +1,19 @@
+﻿@{
+    ViewData["Title"] = "Home";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 text-center">
+            <h1 class="display-4 mb-4">User Management</h1>
+            <p class="lead mb-4">Welcome to the system</p>
+            
+            <div class="mt-4">
+                <a asp-controller="User" asp-action="Index" class="btn btn-primary btn-lg px-5">
+                    Go to User Management
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

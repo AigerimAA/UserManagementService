@@ -1,0 +1,166 @@
+﻿@model UserManagement.Models.ViewModels.UserManagementViewModel
+
+@{
+    ViewData["Title"] = "User Management";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+<div class="container-fluid mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h3 class="mb-0">User Management</h3>
+        </div>
+        
+        <div class="card-body">
+            @Html.AntiForgeryToken()
+            <div class="alert alert-info">
+                Users count: @Model.Users.Count
+            </div>
+
+            <div class="toolbar mb-3 p-2 bg-light rounded d-flex gap-2">
+                <button type="button" id="blockBtn" class="btn btn-warning btn-sm" disabled title="Block selected users">
+                    Block
+                </button>
+                <button type="button" id="unblockBtn" class="btn btn-success btn-sm" disabled title="Unblock selected users">
+                    <i class="bi bi-unlock-fill"></i>
+                </button>
+                <button type="button" id="deleteBtn" class="btn btn-danger btn-sm" disabled title="Delete selected users">
+                    <i class="bi bi-trash-fill"></i>
+                </button>
+                <button type="button" id="deleteUnverifiedBtn" class="btn btn-secondary btn-sm" title="Delete all unverified users">
+                    <i class="bi bi-person-x-fill"></i>
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px; text-align: center;">
+                                <input type="checkbox" id="selectAllCheckbox" />
+                            </th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Last Login Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Model.Users)
+                        {
+                            <tr>
+                                <td style="text-align: center;">
+                                    <input type="checkbox" class="userCheckbox" data-user-id="@user.Id" />
+                                </td>
+                                <td>@user.Name</td>
+                                <td>@user.Email</td>
+                                <td>@user.Status</td>
+                                <td>@user.LastLoginTime.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function getAntiForgeryToken() {
+            return document.querySelector('input[name="__RequestVerificationToken"]').value;
+        }
+
+        function getSelectedUserIds() {
+            var selected = [];
+            $('.userCheckbox:checked').each(function() {
+                selected.push($(this).data('user-id'));
+            });
+            return selected;
+        }
+
+        function updateToolbarButtons() {
+            var selectedCount = $('.userCheckbox:checked').length;
+            $('#blockBtn').prop('disabled', selectedCount === 0);
+            $('#unblockBtn').prop('disabled', selectedCount === 0);
+            $('#deleteBtn').prop('disabled', selectedCount === 0);
+        }
+
+        $('#selectAllCheckbox').change(function() {
+            $('.userCheckbox').prop('checked', $(this).prop('checked'));
+            updateToolbarButtons();
+        });
+
+        $(document).on('change', '.userCheckbox', function() {
+            updateToolbarButtons();
+            var allChecked = $('.userCheckbox:checked').length === $('.userCheckbox').length;
+            $('#selectAllCheckbox').prop('checked', allChecked);
+        });
+
+        $('#blockBtn').click(function() {
+            var selectedIds = getSelectedUserIds();
+            if (selectedIds.length > 0) {
+                $.ajax({
+                    url: '/User/Block',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    headers: {
+                        'RequestVerificationToken': getAntiForgeryToken()
+                    },
+                    data: JSON.stringify(selectedIds),
+                    success: function(response) { location.reload(); }
+                });
+            }
+        });
+
+        $('#unblockBtn').click(function() {
+            var selectedIds = getSelectedUserIds();
+            if (selectedIds.length > 0) {
+                $.ajax({
+                    url: '/User/Unblock',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    headers: {
+                        'RequestVerificationToken': getAntiForgeryToken()
+                    },
+                    data: JSON.stringify(selectedIds),
+                    success: function(response) { location.reload(); }
+                });
+            }
+        });
+
+        $('#deleteBtn').click(function() {
+            var selectedIds = getSelectedUserIds();
+            if (selectedIds.length > 0 && confirm('Delete selected users?')) {
+                $.ajax({
+                    url: '/User/Delete',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    headers: {
+                        'RequestVerificationToken': getAntiForgeryToken()
+                    },
+                    data: JSON.stringify(selectedIds),
+                    success: function(response) { location.reload(); }
+                });
+            }
+        });
+
+        $('#deleteUnverifiedBtn').click(function() {
+            if (confirm('Delete ALL unverified users?')) {
+                $.ajax({
+                    url: '/User/DeleteUnverified',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    headers: {
+                        'RequestVerificationToken': getAntiForgeryToken()
+                    },
+                    success: function(response) { location.reload(); }
+                });
+            }
+        });
+
+        updateToolbarButtons();
+    </script>
+}
